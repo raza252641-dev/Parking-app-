@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ParkIt – Find &amp; Book Parking</title>
+  <meta name="description" content="Find nearby parking, check live availability and reserve a spot in advance.">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/config.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./"><img src="icons/icon.svg" alt="" width="28" height="28"> ParkIt</a>
+    <nav class="topbar__actions">
+      <button id="btn-notify" class="btn btn--ghost" hidden title="Enable booking reminders">🔔 <span class="hide-sm">Reminders</span></button>
+      <button id="btn-bookings" class="btn btn--ghost" hidden>My bookings</button>
+      <span id="user-name" class="user-name hide-sm"></span>
+      <button id="btn-signin" class="btn btn--primary">Sign in</button>
+      <button id="btn-signout" class="btn btn--ghost" hidden>Sign out</button>
+    </nav>
+  </header>
+
+  <div id="demo-banner" class="banner" hidden>
+    Demo mode: sample data stays in this browser. Add your Firebase keys in <code>js/config.js</code> to go live.
+  </div>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="controls">
+        <button id="btn-locate" class="btn btn--primary btn--block">📍 Find parking near me</button>
+        <div class="control-row">
+          <label>Radius
+            <select id="radius">
+              <option value="1">1 km</option>
+              <option value="2">2 km</option>
+              <option value="5" selected>5 km</option>
+              <option value="10">10 km</option>
+              <option value="25">25 km</option>
+            </select>
+          </label>
+          <label>Sort by
+            <select id="sort">
+              <option value="distance">Distance</option>
+              <option value="price">Price</option>
+              <option value="available">Most spots</option>
+            </select>
+          </label>
+        </div>
+        <label class="check"><input type="checkbox" id="only-available" checked> Only show lots with open spots</label>
+      </div>
+      <p id="results-summary" class="summary" aria-live="polite">Loading parking lots…</p>
+      <ul id="lot-list" class="lot-list"></ul>
+    </aside>
+    <section id="map" class="map" aria-label="Map of parking lots"></section>
+  </main>
+
+  <!-- Auth -->
+  <dialog id="dlg-auth" class="dialog">
+    <form id="form-auth" method="dialog" novalidate>
+      <header class="dialog__head">
+        <h2 id="auth-title">Sign in</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+      </header>
+      <label id="auth-name-row" hidden>Full name <input name="name" autocomplete="name"></label>
+      <label>Email <input name="email" type="email" autocomplete="email" required></label>
+      <label id="auth-pw-row">Password <input name="password" type="password" minlength="6" autocomplete="current-password"></label>
+      <p id="auth-error" class="form-error" role="alert"></p>
+      <button id="auth-submit" class="btn btn--primary btn--block" type="submit">Sign in</button>
+      <button id="auth-google" class="btn btn--block" type="button">Continue with Google</button>
+      <p class="auth-links">
+        <a href="#" data-auth-mode="signup">Create account</a> ·
+        <a href="#" data-auth-mode="signin" hidden>Have an account? Sign in</a>
+        <a href="#" data-auth-mode="reset">Forgot password?</a>
+      </p>
+    </form>
+  </dialog>
+
+  <!-- Booking -->
+  <dialog id="dlg-book" class="dialog">
+    <form id="form-book" method="dialog">
+      <header class="dialog__head">
+        <h2>Reserve a spot</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+      </header>
+      <div id="book-lot" class="book-lot"></div>
+      <div class="control-row">
+        <label>Date <input name="date" type="date" required></label>
+        <label>Arrival <input name="time" type="time" required></label>
+      </div>
+      <label>Duration
+        <select name="hours">
+          <option value="1">1 hour</option>
+          <option value="2" selected>2 hours</option>
+          <option value="3">3 hours</option>
+          <option value="4">4 hours</option>
+          <option value="6">6 hours</option>
+          <option value="8">8 hours</option>
+          <option value="12">12 hours</option>
+          <option value="24">24 hours</option>
+        </select>
+      </label>
+      <label>Licence plate <input name="plate" required maxlength="12" autocomplete="off" placeholder="ABC-1234"></label>
+      <div class="total"><span>Total</span><strong id="book-total">–</strong></div>
+      <p id="book-pay-note" class="muted"></p>
+      <p id="book-error" class="form-error" role="alert"></p>
+      <button id="book-submit" class="btn btn--primary btn--block" type="submit">Confirm booking</button>
+    </form>
+  </dialog>
+
+  <!-- My bookings -->
+  <dialog id="dlg-bookings" class="dialog dialog--wide">
+    <header class="dialog__head">
+      <h2>My bookings</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+    </header>
+    <ul id="booking-list" class="booking-list"></ul>
+  </dialog>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

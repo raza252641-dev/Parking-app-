@@ -1,0 +1,13 @@
+node_modules/
+.firebase/
+.firebaserc
+*.log
+.env
+.env.*
+service-account*.json
+
+# Editor deploy settings (FTP/SFTP credentials) must never be committed.
+.vscode/sftp.json
+.vscode/ftp*.json
+ftp-config.*
+deploy.config.*

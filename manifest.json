@@ -1,0 +1,11 @@
+{
+  "name": "ParkIt – Find & Book Parking",
+  "short_name": "ParkIt",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

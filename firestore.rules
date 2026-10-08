@@ -1,0 +1,95 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    function path(p) { return /databases/$(database)/documents/$(p); }
+
+    function requirePayment() {
+      return exists(path('config/app')) && get(path('config/app')).data.requirePayment == true;
+    }
+
+    // ---- App settings (read by clients, written by admins) ----
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---- Users ----
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['email', 'displayName', 'lastLoginAt', 'fcmTokens']);
+    }
+
+    // ---- Parking lots ----
+    match /parkingLots/{lotId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+
+      // Admins (or sensors via the Admin SDK) can edit anything. Customers may
+      // only move availableSpots by exactly one, and only together with a
+      // booking for this lot created (-1) or cancelled (+1) in the same write.
+      allow update: if isAdmin() || (signedIn() && validSpotChange(lotId));
+
+      function validSpotChange(lotId) {
+        let before = resource.data;
+        let after = request.resource.data;
+        let bookingPath = path('bookings/' + after.lastBookingId);
+        let bookingAfter = getAfter(bookingPath).data;
+        return after.diff(before).affectedKeys().hasOnly(['availableSpots', 'lastBookingId', 'updatedAt'])
+          && bookingAfter.lotId == lotId
+          && bookingAfter.userId == request.auth.uid
+          && (
+            // New booking takes a spot.
+            (after.availableSpots == before.availableSpots - 1
+              && after.availableSpots >= 0
+              && !exists(bookingPath))
+            ||
+            // Cancellation frees a spot.
+            (after.availableSpots == before.availableSpots + 1
+              && after.availableSpots <= before.totalSpots
+              && get(bookingPath).data.status in ['confirmed', 'pending_payment']
+              && bookingAfter.status == 'cancelled')
+          );
+      }
+    }
+
+    // ---- Bookings ----
+    match /bookings/{bookingId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+             'userId', 'lotId', 'lotName', 'start', 'end', 'hours', 'plate', 'amount',
+             'currency', 'status', 'paymentStatus', 'reminderSent', 'createdAt'])
+        && request.resource.data.hours is int
+        && request.resource.data.hours >= 1 && request.resource.data.hours <= 24
+        && request.resource.data.start is timestamp
+        && request.resource.data.start > request.time - duration.value(10, 'm')
+        && request.resource.data.end == request.resource.data.start + duration.value(request.resource.data.hours, 'h')
+        && request.resource.data.plate is string && request.resource.data.plate.size() <= 12
+        && request.resource.data.reminderSent == false
+        && (requirePayment()
+              ? (request.resource.data.status == 'pending_payment' && request.resource.data.paymentStatus == 'unpaid')
+              : (request.resource.data.status == 'confirmed' && request.resource.data.paymentStatus == 'pay_on_site'))
+        // The spot must be taken in the same transaction.
+        && getAfter(path('parkingLots/' + request.resource.data.lotId)).data.lastBookingId == bookingId
+        && getAfter(path('parkingLots/' + request.resource.data.lotId)).data.availableSpots
+             == get(path('parkingLots/' + request.resource.data.lotId)).data.availableSpots - 1;
+
+      // Customers may only cancel their own upcoming booking.
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && resource.data.status in ['confirmed', 'pending_payment']
+        && resource.data.start > request.time
+        && request.resource.data.status == 'cancelled'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledAt']);
+
+      allow delete: if false;
+    }
+  }
+}
