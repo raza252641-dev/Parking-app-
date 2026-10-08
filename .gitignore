@@ -11,3 +11,6 @@ service-account*.json
 .vscode/ftp*.json
 ftp-config.*
 deploy.config.*
+
+# Packaged uploads
+*.zip
